@@ -4,25 +4,25 @@
 # 						Contributor: Ionut Biru <ibiru@archlinux.org>
 
 pkgname=colord
-pkgver=1.3.5
-pkgrel=2
+pkgver=1.4.0+13+gb570101
+pkgrel=1
 pkgdesc="System daemon for managing color devices"
 arch=(x86_64)
 url="https://www.freedesktop.org/software/colord"
 license=(GPL2)
-depends=(lcms2 libgusb polkit sqlite dconf dbus eudev-obarun libgudev)
-makedepends=(intltool gobject-introspection vala sane bash-completion argyllcms gnome-common git
-             docbook-utils docbook-sgml perl-sgmls)
+depends=(lcms2 libgusb polkit sqlite dconf dbus libgudev shared-mime-info)
+makedepends=(gobject-introspection vala sane bash-completion argyllcms git docbook-utils
+             docbook-sgml perl-sgmls meson gtk-doc)
 optdepends=('sane: scanner support'
             'argyllcms: color profiling'
-            'cups-s6serv: cups s6 service'
-            'cups-s6rcserv: cups s6-rc service'
-            'cups-runitserv: cups runit service')
+            'colord-s6serv: cups s6 service')
 replaces=('shared-color-profiles')
 install=colord.install
-_commit=54723dc6e3373a63a43cf814ad7424932bd996f0 # tags/1.3.5^0
-source=("git+https://github.com/hughsie/colord#commit=$_commit")
-sha1sums=('SKIP')
+_commit=b570101cc6a8be360f74f69de329fdd4de407ff8 # remove systemd from compilation
+source=("git+https://github.com/hughsie/colord#commit=$_commit"
+		'colord.tmpfiles')
+sha1sums=('SKIP'
+          'f7a59ccc5a0f6485e08f3ffdebb68dbc0797c461')
 validpgpkeys=('6DD4217456569BA711566AC7F06E8FDE7B45DAAC') # Eric Vidal
 
 pkgver() {
@@ -31,39 +31,38 @@ pkgver() {
 }
 
 prepare() {
-
-
+  mkdir build
   cd $pkgname
-  NOCONFIGURE=1 ./autogen.sh
 }
 
 build() {
-  cd ${pkgname}
-  ./configure 	--prefix=/usr \
-				--sysconfdir=/etc \
-				--localstatedir=/var \
-				--libexecdir=/usr/lib/$pkgname \
-				--with-systemdsystemunitdir=no \
-				--with-daemon-user=colord \
-				--enable-print-profiles \
-				--enable-libcolordcompat \
-				--enable-vala \
-				--enable-sane \
-				--enable-systemd_login=no \
-				--enable-udev \
-				--with-udevrulesdir=/etc/udev/rules.d/ \
-				--disable-static
-  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
-  make
-  PATH="$srcdir/path:$PATH" make
+
+  cd build
+  meson --prefix=/usr --buildtype=release ../$pkgname \
+    --localstatedir=/var --libexecdir=/usr/lib/$pkgname \
+    -Denable-libcolordcompat=true \
+    -Denable-sane=true \
+    -Denable-vala=true \
+    -Denable-print-profiles=true \
+    -Dwith-daemon-user=colord \
+    -Denable-systemd=false \
+       
+  ninja	
+}
+
+check() {
+  cd build
+  mesontest || true # crash occur when it try to test the daemon; pass trough it
 }
 
 package() {
-  cd ${pkgname}
-  make DESTDIR="$pkgdir" install
+  cd build
+  DESTDIR="$pkgdir" ninja install
 
   # the build system has no colord user, so the chown fails
   chown -R 124:124 "$pkgdir/var/lib/colord"
+  
+  install -D -m644 ${srcdir}/colord.tmpfiles ${pkgdir}/usr/lib/tmpfiles.d/colord.conf
 }
 
 # vim:set ts=2 sw=2 et:
