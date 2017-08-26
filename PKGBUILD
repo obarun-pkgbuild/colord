@@ -4,8 +4,8 @@
 # 						Contributor: Ionut Biru <ibiru@archlinux.org>
 
 pkgname=colord
-pkgver=1.4.0+13+gb570101
-pkgrel=1
+pkgver=1.4.1
+pkgrel=2
 pkgdesc="System daemon for managing color devices"
 arch=(x86_64)
 url="https://www.freedesktop.org/software/colord"
@@ -18,7 +18,7 @@ optdepends=('sane: scanner support'
             'colord-s6serv: cups s6 service')
 replaces=('shared-color-profiles')
 install=colord.install
-_commit=b570101cc6a8be360f74f69de329fdd4de407ff8 # remove systemd from compilation
+_commit=ef560710602ce590e72f8412cb200f68d6e3e153 # tags/1.4.1^0
 source=("git+https://github.com/hughsie/colord#commit=$_commit"
 		'colord.tmpfiles')
 sha1sums=('SKIP'
@@ -38,7 +38,7 @@ prepare() {
 build() {
 
   cd build
-  meson --prefix=/usr --buildtype=release ../$pkgname \
+  meson setup --prefix=/usr --buildtype=release ../$pkgname \
     --localstatedir=/var --libexecdir=/usr/lib/$pkgname \
     -Denable-libcolordcompat=true \
     -Denable-sane=true \
@@ -52,7 +52,7 @@ build() {
 
 check() {
   cd build
-  mesontest || true # crash occur when it try to test the daemon; pass trough it
+  meson test #|| true # crash occur when it try to test the daemon; pass trough it
 }
 
 package() {
@@ -60,8 +60,9 @@ package() {
   DESTDIR="$pkgdir" ninja install
 
   # the build system has no colord user, so the chown fails
-  chown -R 124:124 "$pkgdir/var/lib/colord"
-  
+  ## pass this command on install file instead
+  #chown -R 124:124 "$pkgdir/var/lib/colord"
+  cd ..
   install -D -m644 ${srcdir}/colord.tmpfiles ${pkgdir}/usr/lib/tmpfiles.d/colord.conf
 }
 
