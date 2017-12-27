@@ -4,7 +4,7 @@
 # 						Contributor: Ionut Biru <ibiru@archlinux.org>
 
 pkgname=colord
-pkgver=1.4.1
+pkgver=1.4.1+7+g2c92e03
 pkgrel=2
 pkgdesc="System daemon for managing color devices"
 arch=(x86_64)
@@ -17,12 +17,16 @@ optdepends=('sane: scanner support'
             'argyllcms: color profiling'
             'colord-s6serv: cups s6 service')
 replaces=('shared-color-profiles')
-install=colord.install
-_commit=ef560710602ce590e72f8412cb200f68d6e3e153 # tags/1.4.1^0
+options=(!emptydirs)
+_commit=2c92e03775a15bcd304ef39e9a3220496fc9168a # master
 source=("git+https://github.com/hughsie/colord#commit=$_commit"
-		'colord.tmpfiles')
+		'0001-Make-cd_color_get_blackbody_rgb_full-safer.patch'
+		'colord.tmpfiles'
+		'colord.sysusers')
 sha1sums=('SKIP'
-          'f7a59ccc5a0f6485e08f3ffdebb68dbc0797c461')
+          '6b5012433df99a581c9c75866d67e7cc9e01dc5a'
+          'f7a59ccc5a0f6485e08f3ffdebb68dbc0797c461'
+          'e8dc15cc1bb3b5723d3b6e0f082e999b5c183863')
 validpgpkeys=('6DD4217456569BA711566AC7F06E8FDE7B45DAAC') # Eric Vidal
 
 pkgver() {
@@ -31,15 +35,13 @@ pkgver() {
 }
 
 prepare() {
-  mkdir build
   cd $pkgname
+  patch -Np1 -i ../0001-Make-cd_color_get_blackbody_rgb_full-safer.patch
 }
 
 build() {
 
-  cd build
-  meson setup --prefix=/usr --buildtype=release ../$pkgname \
-    --localstatedir=/var --libexecdir=/usr/lib/$pkgname \
+  arch-meson $pkgname build \
     -Denable-libcolordcompat=true \
     -Denable-sane=true \
     -Denable-vala=true \
@@ -47,7 +49,7 @@ build() {
     -Dwith-daemon-user=colord \
     -Denable-systemd=false \
        
-  ninja	
+  ninja	-C build
 }
 
 check() {
@@ -56,14 +58,13 @@ check() {
 }
 
 package() {
-  cd build
-  DESTDIR="$pkgdir" ninja install
+  
+  DESTDIR="$pkgdir" ninja -C build install
 
-  # the build system has no colord user, so the chown fails
-  ## pass this command on install file instead
-  #chown -R 124:124 "$pkgdir/var/lib/colord"
-  cd ..
+  
   install -D -m644 ${srcdir}/colord.tmpfiles ${pkgdir}/usr/lib/tmpfiles.d/colord.conf
+  install -Dm644 "$srcdir/colord.sysusers" "$pkgdir/usr/lib/sysusers.d/colord.conf"
+  
 }
 
 # vim:set ts=2 sw=2 et:
