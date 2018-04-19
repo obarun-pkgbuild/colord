@@ -3,9 +3,10 @@
 # 						Maintainer: Jan Alexander Steffens (heftig) <jan.steffens@gmail.com>
 # 						Contributor: Ionut Biru <ibiru@archlinux.org>
 
-pkgname=colord
+pkgbase=colord
+pkgname=(colord colord-sane)
 pkgver=1.4.2
-pkgrel=3
+pkgrel=4
 pkgdesc="System daemon for managing color devices"
 arch=(x86_64)
 url="https://www.freedesktop.org/software/colord"
@@ -14,9 +15,7 @@ depends=(lcms2 libgusb polkit sqlite dconf dbus libgudev shared-mime-info)
 makedepends=(gobject-introspection vala sane bash-completion argyllcms git docbook-utils
              docbook-sgml perl-sgmls meson gtk-doc)
 optdepends=('sane: scanner support'
-            'argyllcms: color profiling'
-            'colord-s6serv: cups s6 service')
-replaces=('shared-color-profiles')
+            'argyllcms: color profiling')
 options=(!emptydirs)
 _commit=5b9aa8de432579a2636f13ad6895928f42511081 # tags/1.4.2^0
 source=("git+https://github.com/hughsie/colord#commit=$_commit"
@@ -30,18 +29,18 @@ sha1sums=('SKIP'
 validpgpkeys=('6DD4217456569BA711566AC7F06E8FDE7B45DAAC') # Eric Vidal
 
 pkgver() {
-  cd $pkgname
+  cd $pkgbase
   git describe --tags | sed 's/-/+/g'
 }
 
 prepare() {
-  cd $pkgname
+  cd $pkgbase
   patch -Np1 -i ../0001-Make-cd_color_get_blackbody_rgb_full-safer.patch
 }
 
 build() {
 
-  arch-meson $pkgname build \
+  arch-meson $pkgbase build \
     -Denable-libcolordcompat=true \
     -Denable-sane=true \
     -Denable-vala=true \
@@ -57,14 +56,26 @@ check() {
   meson test #|| true # crash occur when it try to test the daemon; pass trough it
 }
 
-package() {
-  
+package_colord() {
+
+	optdepends=('argyllcms: color profiling'
+				'colord-sane: SANE support')
+  replaces=(shared-color-profiles)
+
   DESTDIR="$pkgdir" ninja -C build install
 
   
   install -D -m644 ${srcdir}/colord.tmpfiles ${pkgdir}/usr/lib/tmpfiles.d/colord.conf
   install -Dm644 "$srcdir/colord.sysusers" "$pkgdir/usr/lib/sysusers.d/colord.conf"
   
+  ## Split colord-sane
+  mkdir -p colord-sane/usr/lib/colord-plugins
+  mv {"$pkgdir",colord-sane}/usr/lib/colord-sane
+  mv {"$pkgdir",colord-sane}/usr/lib/colord-plugins/libcolord_sensor_sane.so
 }
 
-# vim:set ts=2 sw=2 et:
+package_colord-sane(){
+  pkgdesc+=" (SANE support)"
+  depends=("colord=$pkgver-$pkgrel" sane)
+  mv colord-sane/* "$pkgdir"
+}
