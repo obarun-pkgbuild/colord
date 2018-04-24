@@ -5,8 +5,8 @@
 
 pkgbase=colord
 pkgname=(colord colord-sane)
-pkgver=1.4.2
-pkgrel=4
+pkgver=1.4.3
+pkgrel=2
 pkgdesc="System daemon for managing color devices"
 arch=(x86_64)
 url="https://www.freedesktop.org/software/colord"
@@ -17,9 +17,8 @@ makedepends=(gobject-introspection vala sane bash-completion argyllcms git docbo
 optdepends=('sane: scanner support'
             'argyllcms: color profiling')
 options=(!emptydirs)
-_commit=5b9aa8de432579a2636f13ad6895928f42511081 # tags/1.4.2^0
+_commit=cd7faac0d81f2dabef6c9787baf78b9e8fb0e1ae # tags/1.4.3^0
 source=("git+https://github.com/hughsie/colord#commit=$_commit"
-		'0001-Make-cd_color_get_blackbody_rgb_full-safer.patch'
 		'colord.tmpfiles'
 		'colord.sysusers')
 sha1sums=('SKIP'
@@ -33,20 +32,19 @@ pkgver() {
   git describe --tags | sed 's/-/+/g'
 }
 
-prepare() {
-  cd $pkgbase
-  patch -Np1 -i ../0001-Make-cd_color_get_blackbody_rgb_full-safer.patch
-}
+#prepare() {
+#  cd $pkgbasepatch -Np1 -i ../0001-Make-cd_color_get_blackbody_rgb_full-safer.patch
+#}
 
 build() {
 
   arch-meson $pkgbase build \
-    -Denable-libcolordcompat=true \
-    -Denable-sane=true \
-    -Denable-vala=true \
-    -Denable-print-profiles=true \
-    -Dwith-daemon-user=colord \
-    -Denable-systemd=false \
+    -D libcolordcompat=true \
+    -D sane=true \
+    -D vapi=true \
+    -D print-profiles=true \
+    -D daemon-user=colord \
+    -D systemd=false 
        
   ninja	-C build
 }
